@@ -1,32 +1,29 @@
 package com.github.shannonbay.studybuddy
 
-import android.os.Bundle
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.util.Log
-import androidx.fragment.app.Fragment
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.navigation.fragment.findNavController
-import com.github.shannonbay.studybuddy.databinding.FragmentFirstBinding
-import java.util.*
-import android.os.CountDownTimer
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
-
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import androidx.appcompat.app.AppCompatActivity
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.github.shannonbay.studybuddy.databinding.FragmentFirstBinding
+import java.util.*
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 
 /**
@@ -36,6 +33,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     private var _binding: FragmentFirstBinding? = null
     private var textToSpeech: TextToSpeech? = null
+    private lateinit var mediaControllerManager: MediaControllerManager
     private lateinit var speechRecognizer: SpeechRecognizer
 
     // This property is only valid between onCreateView and
@@ -47,6 +45,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
+        mediaControllerManager = MediaControllerManager(requireContext())
 
         requestMicrophone()
         return binding.root
@@ -55,8 +54,18 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     private val PERMISSION_REQUEST_MICROPHONE = 1
+    private val PERMISSION_REQUEST_MEDIA_CONTROL = 2
+    private val PERMISSION_REQUEST_MANAGE_MEDIA = 3
 
     private fun requestMicrophone() {
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
+        }
+
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MANAGE_MEDIA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MANAGE_MEDIA), PERMISSION_REQUEST_MANAGE_MEDIA)
+        }
+
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.RECORD_AUDIO
@@ -128,10 +137,18 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
             speechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(requireContext())
         } else {
             Log.e("MIC", "ON DEVICE2")
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(requireContext())
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(
+                requireContext(),
+                ComponentName(
+                    "com.google.android.tts",
+                    "com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService"
+                )
+            )
+//            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(requireContext())
         }
         speechRecognizer.setRecognitionListener(this)
         startListening()
+        Log.e("MIC", "Listening is runinning")
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
@@ -231,30 +248,60 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     override fun onDestroyView() {
         super.onDestroyView()
+
+
+        if (speechRecognizer != null) {
+            speechRecognizer.cancel()
+            speechRecognizer.stopListening();
+            speechRecognizer.destroy();
+        }
+
+        if (textToSpeech != null) {
+            textToSpeech?.stop()
+            textToSpeech?.shutdown()
+        }
+
         _binding = null
     }
 
     private fun startListening() {
+        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+        startActivity(intent)
+
         val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+
         recognizerIntent.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
         )
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE , false)
 
         speechRecognizer.startListening(recognizerIntent)
-        Log.e("MIC", "Started listening")
+        Log.i("MIC", "Started listening")
     }
 
     override fun onReadyForSpeech(p0: Bundle?) {
-        Log.e("MIC", "Ready to listen")
+        Log.i("MIC", "Ready to listen")
     }
 
     override fun onBeginningOfSpeech() {
-        Log.e("MIC", "Hrd you!")
+        Log.i("MIC", "Hrd you!")
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
+        }
+
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MANAGE_MEDIA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MANAGE_MEDIA), PERMISSION_REQUEST_MANAGE_MEDIA)
+        }
+
+
+        mediaControllerManager.pauseActiveMediaSessions()
     }
 
     override fun onRmsChanged(p0: Float) {
-        Log.e("MIC", "Volume or something?$p0")
+//        Log.i("MIC", "Volume or something?$p0")
     }
 
     override fun onBufferReceived(p0: ByteArray?) {
@@ -262,11 +309,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     override fun onEndOfSpeech() {
-        Log.e("MIC", "You went quiet!")
+        Log.i("MIC", "You went quiet!")
     }
 
     override fun onError(p0: Int) {
-        Log.e("MIC", "Got an error")
+        Log.i("MIC", "Got an error $p0 :(")
         startListening()
     }
 
@@ -280,7 +327,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     override fun onPartialResults(p0: Bundle?) {
-        TODO("Not yet implemented")
+        Log.i("MIC", "Partial result $p0")
     }
 
     override fun onEvent(p0: Int, p1: Bundle?) {

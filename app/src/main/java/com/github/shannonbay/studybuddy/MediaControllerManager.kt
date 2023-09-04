@@ -16,7 +16,7 @@ class MediaControllerManager(private val context: Context) {
     fun pauseActiveMediaSessions() {
         val activeSessions = mediaSessionManager.getActiveSessions(ComponentName(context, "Your Component Name"))
 
-        for (session in activeSessions) {
+/*        for (session in activeSessions) {
             val controller = MediaController(context, session.sessionToken)
 
             // Check if the session is currently playing
@@ -26,8 +26,8 @@ class MediaControllerManager(private val context: Context) {
             ) {
                 // Pause the playback
                 val extras = Bundle()
-                controller.transportControls.pause()
+//////////////////                controller.transportControls.pause()
             }
-        }
+        }*/
     }
 }
