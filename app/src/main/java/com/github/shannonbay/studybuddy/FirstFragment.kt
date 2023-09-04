@@ -1,17 +1,23 @@
 package com.github.shannonbay.studybuddy
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,12 +46,25 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     // onDestroyView.
     private val binding get() = _binding!!
 
+    private  var  nReceiver: NotificationReceiver? = null
+
+    internal class NotificationReceiver : BroadcastReceiver() {
+       override fun onReceive(context: Context, intent: Intent) {
+            Log.e("NOTIFY", intent.getStringExtra("notification_event") + "n study-buddy")
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         mediaControllerManager = MediaControllerManager(requireContext())
+
+        nReceiver = NotificationReceiver()
+        val filter = IntentFilter()
+//        filter.addAction("com.kpbird.nlsexample.NOTIFICATION_LISTENER_EXAMPLE")
+        requireActivity().registerReceiver(nReceiver, filter)
 
         requestMicrophone()
         return binding.root
@@ -58,6 +77,9 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     private val PERMISSION_REQUEST_MANAGE_MEDIA = 3
 
     private fun requestMicrophone() {
+        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+        startActivity(intent)
+
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
         }
@@ -265,8 +287,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     private fun startListening() {
-        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-        startActivity(intent)
 
         val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
 
@@ -279,15 +299,21 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE , false)
 
         speechRecognizer.startListening(recognizerIntent)
-        Log.i("MIC", "Started listening")
+        Log.d("MIC", "Started listening")
     }
 
     override fun onReadyForSpeech(p0: Bundle?) {
-        Log.i("MIC", "Ready to listen")
+        Log.d("MIC", "Ready to listen")
     }
 
     override fun onBeginningOfSpeech() {
-        Log.i("MIC", "Hrd you!")
+        Log.d("MIC", "Hrd you!")
+
+        // Create a MediaButtonReceiver object and a KeyEvent object
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+        audioManager!!.dispatchMediaKeyEvent(event)
+
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
         }
@@ -314,6 +340,10 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     override fun onError(p0: Int) {
         Log.i("MIC", "Got an error $p0 :(")
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+        audioManager!!.dispatchMediaKeyEvent(event)
+
         startListening()
     }
 

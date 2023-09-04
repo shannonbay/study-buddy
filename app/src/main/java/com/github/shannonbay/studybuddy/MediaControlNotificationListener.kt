@@ -11,6 +11,7 @@ class MediaControlNotificationListener : NotificationListenerService() {
         val packageName = sbn.packageName
         val notification = sbn.notification
 
+        Log.e("NOTIFY", "Got a notifycation $sbn")
         // Check if the notification is from a media app and contains media control actions.
         if (isMediaPlaybackNotification(notification)) {
             // Perform media control actions based on your requirements.
