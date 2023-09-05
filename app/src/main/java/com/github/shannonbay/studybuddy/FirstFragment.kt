@@ -307,11 +307,13 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     override fun onBeginningOfSpeech() {
         Log.d("MIC", "Hrd you! PAUSE")
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+        audioManager!!.dispatchMediaKeyEvent(event)
+        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+        audioManager!!.dispatchMediaKeyEvent(event)
 
         // Create a MediaButtonReceiver object and a KeyEvent object
-        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event)
 
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
@@ -340,14 +342,18 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 //        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
 
         if(shouldRewind) {
+            shouldRewind = false
             var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
             rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
         }
 
-       val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
         audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+        audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+
     }
 
     override fun onError(p0: Int) {
@@ -355,16 +361,17 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
         if(shouldRewind) {
+            shouldRewind = false
             var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
             rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
         }
-
-
-        shouldRewind = false
-        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+/*      // Sending PLAY from onError causes every background sound to pause Joseph's Storehouse
+        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
         audioManager!!.dispatchMediaKeyEvent(event)
+        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+        audioManager!!.dispatchMediaKeyEvent(event)*/
 
         startListening()
     }
