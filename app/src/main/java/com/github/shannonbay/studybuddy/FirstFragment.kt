@@ -2,19 +2,14 @@ package com.github.shannonbay.studybuddy
 
 import android.Manifest
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.os.Build
 import android.os.Bundle
-import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -41,17 +36,16 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import java.util.concurrent.ScheduledFuture
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
-class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListener {
+class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     private var _binding: FragmentFirstBinding? = null
     private var textToSpeech: TextToSpeech? = null
     private lateinit var mediaControllerManager: MediaControllerManager
-    private lateinit var speechRecognizer: SpeechRecognizer
 
     /**
      * Microphone setup for VAD
@@ -97,7 +91,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
             ActivityCompat.requestPermissions(
                 requireActivity(),
                 arrayOf(Manifest.permission.RECORD_AUDIO),
-                PERMISSION_REQUEST_MICROPHONE
+                RECORD_AUDIO_PERMISSION_REQUEST
             )
         }
 
@@ -119,17 +113,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
             .setSpeechDurationMs(50)
             .build()
 
-        Log.d("VAD", "Starting recording")               //Noise detected!
-        startRecording()
-
-        Log.e("MIC", "is speech" + vad!!.isSpeech(audioData))
-       Log.d("VAD", "Waiting for noise")               //Noise detected!
-        vad!!.close()
-
-        nReceiver = NotificationReceiver()
-        val filter = IntentFilter()
-//        filter.addAction("com.kpbird.nlsexample.NOTIFICATION_LISTENER_EXAMPLE")
-        requireActivity().registerReceiver(nReceiver, filter)
 
 //        requestMicrophone()
         return binding.root
@@ -137,7 +120,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     }
 
-    private val PERMISSION_REQUEST_MICROPHONE = 1
     private val PERMISSION_REQUEST_MEDIA_CONTROL = 2
     private val PERMISSION_REQUEST_MANAGE_MEDIA = 3
 
@@ -169,13 +151,13 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
                 ActivityCompat.requestPermissions(
                     requireActivity(),
                     arrayOf(Manifest.permission.RECORD_AUDIO),
-                    PERMISSION_REQUEST_MICROPHONE
+                    RECORD_AUDIO_PERMISSION_REQUEST
                 )
             } else {
                 ActivityCompat.requestPermissions(
                     requireActivity(),
                     arrayOf(Manifest.permission.RECORD_AUDIO),
-                    PERMISSION_REQUEST_MICROPHONE
+                    RECORD_AUDIO_PERMISSION_REQUEST
                 )
             }
         }
@@ -217,24 +199,15 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
             Log.e("MIC", "Audio permission not granted!")
         }
-        if(!SpeechRecognizer.isRecognitionAvailable(requireContext()))
-           Log.e("MIC", "Not available")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Log.e("MIC", "ON DEVICE")
-            speechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(requireContext())
-        } else {
-            Log.e("MIC", "ON DEVICE2")
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(
-                requireContext(),
-                ComponentName(
-                    "com.google.android.tts",
-                    "com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService"
-                )
-            )
-//            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(requireContext())
-        }
-        speechRecognizer.setRecognitionListener(this)
-        //startListening()
+
+        Log.d("VAD", "Starting recording")               //Noise detected!
+
+        Log.e("MIC", "is speech" + vad!!.isSpeech(audioData))
+        Log.d("VAD", "Waiting for noise")               //Noise detected!
+
+        startRecording()
+
+        vad!!.close()
         Log.e("MIC", "Listening is runinning")
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
@@ -291,6 +264,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         }
     }
 
+    private val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    fun scheduleNext(runnable: Runnable, delayMillis: Long): ScheduledFuture<*>? {
+        return executor.schedule(runnable, delayMillis, TimeUnit.MILLISECONDS)
+    }
+
     fun scheduleNext(delayMillis: Long) {
         // Create a ScheduledExecutorService with a single thread
         val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
@@ -324,11 +302,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
         stopRecording()
 
-        if (speechRecognizer != null) {
-            speechRecognizer.stopListening();
-            speechRecognizer.destroy();
-        }
-
         if (textToSpeech != null) {
             textToSpeech?.stop()
             textToSpeech?.shutdown()
@@ -338,13 +311,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     override fun onDestroyView() {
         super.onDestroyView()
-
-
-        if (speechRecognizer != null) {
-            speechRecognizer.cancel()
-            speechRecognizer.stopListening();
-            speechRecognizer.destroy();
-        }
 
         if (textToSpeech != null) {
             textToSpeech?.stop()
@@ -366,35 +332,19 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE , false)
 
-        speechRecognizer.startListening(recognizerIntent)
         Log.d("MIC", "Started listening")
     }
 
-    override fun onReadyForSpeech(p0: Bundle?) {
-        Log.d("MIC", "Ready to listen")
-        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
-    }
-
-    override fun onBeginningOfSpeech() {
+    fun onBeginningOfSpeech() {
         Log.d("MIC", "Hrd you! PAUSE")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
         var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
         audioManager!!.dispatchMediaKeyEvent(event)
-        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event)
+        /*event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+        audioManager!!.dispatchMediaKeyEvent(event)*/
     }
 
-    override fun onRmsChanged(p0: Float) {
-//        Log.i("MIC", "Volume or something?$p0")
-    }
-
-    override fun onBufferReceived(p0: ByteArray?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun onEndOfSpeech() {
+    fun onEndOfSpeech() {
         Log.i("MIC", "You went quiet! REWIND3")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 //        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
@@ -404,56 +354,39 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
             shouldRewind = false
             var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
+/*            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)*/
+
+            rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+/*            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)*/
+
+            rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+/*            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)*/
         }
 
         var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
         audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
-        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+/*        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
         audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
-
-    }
-
-    override fun onError(p0: Int) {
-        Log.i("MIC", "Got an error $p0 :(")
-        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-
-        if(shouldRewind) {
-            shouldRewind = false
-            var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-        }
-/*      // Sending PLAY from onError causes every background sound to pause Joseph's Storehouse
-        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
-        audioManager!!.dispatchMediaKeyEvent(event)
-        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
-        audioManager!!.dispatchMediaKeyEvent(event)*/
-
-        startListening()
-    }
-
-    override fun onResults(results: Bundle?) {
-        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        if (!matches.isNullOrEmpty()) {
-            val detectedSpeech = matches[0]
-            Log.e("MIC", "Heard you!$detectedSpeech")
-        }
-        startListening() // Start listening again for more speech
+*/
     }
 
     var shouldRewind = false
-    override fun onPartialResults(p0: Bundle?) {
-        Log.i("MIC", "Partial result $p0")
-
-        shouldRewind = true
-    }
-
 
     val audioData = ShortArray(512)
     var isSpeech = System.currentTimeMillis()
+
+    var resumeMediaScheduledFuture: ScheduledFuture<*>? = null
+    val resumeMedia = Runnable {
+        // Code to be executed after the delay
+        // This is your one-shot callback function
+        // For example, you can update UI elements or perform other actions here
+        onEndOfSpeech()
+    }
     private fun startRecording() { // TODO make a SpeechRecognizer style callback for Android VAD
         runBlocking {
             launch(Dispatchers.IO) {
@@ -469,10 +402,17 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
                     vad!!.setContinuousSpeechListener(audioData, object : VadListener {
                         override fun onSpeechDetected() {
-                            Log.d("VAD", "Got speech!")
-                            if(System.currentTimeMillis() - isSpeech > 2000) {
+                            Log.d("VAD", "Restart resume callback")
+                            resumeMediaScheduledFuture?.cancel(true)
+                            resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
+                            if(System.currentTimeMillis() - isSpeech > 3000) {
                                 onBeginningOfSpeech()
+                                Log.d("VAD", "PAUSE: Got speech!")
                             }
+                            // Define the code you want to run after the delay
+
+
+
                             shouldRewind = true
                             isSpeech = System.currentTimeMillis()
 
@@ -480,10 +420,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
                         }
 
                         override fun onNoiseDetected() {
-                            if(System.currentTimeMillis() - isSpeech > 1000) {
+                            if(System.currentTimeMillis() - isSpeech > 3000) {
                                 onEndOfSpeech()
+                                if(shouldRewind)
+                                    Log.d("VAD", "Speech ended - rewind/resume!")               //Noise detected!
                             }
-                            Log.d("VAD", "Got noise!")               //Noise detected!
                         }
                     })
 
@@ -505,9 +446,5 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
 
     companion object {
         private const val RECORD_AUDIO_PERMISSION_REQUEST = 123
-    }
-
-    override fun onEvent(p0: Int, p1: Bundle?) {
-        TODO("Not yet implemented")
     }
 }
