@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -307,7 +306,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     override fun onBeginningOfSpeech() {
-        Log.d("MIC", "Hrd you!")
+        Log.d("MIC", "Hrd you! PAUSE")
 
         // Create a MediaButtonReceiver object and a KeyEvent object
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
@@ -335,12 +334,35 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
     }
 
     override fun onEndOfSpeech() {
-        Log.i("MIC", "You went quiet!")
+        Log.i("MIC", "You went quiet! REWIND3")
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+//        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
+//        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
+
+        if(shouldRewind) {
+            var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+        }
+
+       val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+        audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
     }
 
     override fun onError(p0: Int) {
         Log.i("MIC", "Got an error $p0 :(")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+
+        if(shouldRewind) {
+            var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
+            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
+        }
+
+
+        shouldRewind = false
         val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
         audioManager!!.dispatchMediaKeyEvent(event)
 
@@ -356,8 +378,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener, RecognitionListen
         startListening() // Start listening again for more speech
     }
 
+    var shouldRewind = false
     override fun onPartialResults(p0: Bundle?) {
         Log.i("MIC", "Partial result $p0")
+
+        shouldRewind = true
     }
 
     override fun onEvent(p0: Int, p1: Bundle?) {
