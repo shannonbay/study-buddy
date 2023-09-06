@@ -338,42 +338,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         _binding = null
     }
 
-    fun onBeginningOfSpeech() {
-        Log.d("MIC", "Hrd you! PAUSE")
-        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event)
-        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event)
-
-        /*
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .build()
-        val audioFocusRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(audioAttributes)
-                .setOnAudioFocusChangeListener { focusChange ->
-                    when (focusChange) {
-                        AudioManager.AUDIOFOCUS_GAIN -> {
-                            Log.e("VAD", "Gained audio focus!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                        }
-                        AudioManager.AUDIOFOCUS_REQUEST_FAILED -> {
-                            Log.e("VAD", ":(((((((((((((((((((((((((((((((((((((((((( FAILED TO GAIN AUDIO FOCUS")
-                        }
-                        // Handle other cases as needed.
-                    }
-                }
-                .build()
-        } else {
-            TODO("VERSION.SDK_INT < O")
-        }*/
-//        val result = audioManager.requestAudioFocus(audioFocusRequest)
-// Check the result and act accordingly.
-
-    }
-
     fun onEndOfSpeech() {
         Log.i("VAD", "You went quiet! REWIND and PLAY")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
@@ -383,16 +347,15 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         if(shouldRewind) {
             shouldRewind = false
 
-            Log.i("VAD", "REWIND BROADCAST")
-            val eventTime = SystemClock.uptimeMillis()
+/*            Log.i("VAD", "REWIND BROADCAST")
             val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
             intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-            requireActivity().sendOrderedBroadcast(intent, null)
-
-            val eventTime3 = SystemClock.uptimeMillis()
+            requireActivity().sendOrderedBroadcast(intent, null)*/
+            Log.i("VAD", "REWIND BROADCAST")
+/*            val eventTime3 = SystemClock.uptimeMillis()
             val intent3 = Intent(Intent.ACTION_MEDIA_BUTTON)
-            intent3.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND, 0))
-            requireActivity().sendOrderedBroadcast(intent3, null)
+            intent3.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime3, eventTime3, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND, 0))
+            requireActivity().sendOrderedBroadcast(intent3, null)*/
 
             var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
 //            audioManager!!.requestAudioFocus(AudioFocusRequest.)
@@ -411,25 +374,31 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)*/
         }
 
-        val intent2 = Intent(Intent.ACTION_MEDIA_BUTTON)
-        val eventTime2 = SystemClock.uptimeMillis() + 1
+/*        val intent2 = Intent(Intent.ACTION_MEDIA_BUTTON)
+        val eventTime2 = SystemClock.uptimeMillis()
         //        val eventTime2 = System.nanoTime()
         intent2.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime2, eventTime2, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-        requireActivity().sendOrderedBroadcast(intent2, null)
+        requireActivity().sendOrderedBroadcast(intent2, null)*/
 
         /*        val intent2 = Intent(Intent.ACTION_MEDIA_BUTTON)
                 val eventTime2 = SystemClock.uptimeMillis() + 1
         //        val eventTime2 = System.nanoTime()
                 intent2.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime2, eventTime2, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
                 requireActivity().sendOrderedBroadcast(intent2, null)*/
+/*        val eventTime = SystemClock.uptimeMillis() + 1000
+        val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
+//                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
+        requireActivity().sendOrderedBroadcast(intent, null)
 
-        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
-        audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
-        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
-        audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+*/
 
+        if(audioManager?.isMusicActive == false) {
+            var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+            audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+        }
 
-        /*
+/*
         val extractor = MediaExtractor()
 extractor.setDataSource("path/to/media/file")
 extractor.selectTrack(0) // select the first track
@@ -471,26 +440,33 @@ extractor.seekTo(1000000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC) // rewind to 1 s
                             resumeMediaScheduledFuture?.cancel(true)
                             resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
 
-                            val eventTime = SystemClock.uptimeMillis()
+/*                            val eventTime = SystemClock.uptimeMillis()
                             val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
                             intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
-                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
-                            requireActivity().sendOrderedBroadcast(intent, null)
+//                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
+                            requireActivity().sendOrderedBroadcast(intent, null)*/
 
                             val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-                            var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                            audioManager!!.dispatchMediaKeyEvent(event)
-                            event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                            audioManager!!.dispatchMediaKeyEvent(event)
+
+/*                            event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                            audioManager!!.dispatchMediaKeyEvent(event)*/
 
                             // TODO make this not be so dumb - if speaking persistent while already playing, will not pause again
                             // couild just fire pause all the tiem?
-                            if (System.currentTimeMillis() - isSpeech > 3000) {
-                                onBeginningOfSpeech()
+                            if (System.currentTimeMillis() - isSpeech > 300) {
+                                //:w
+                                //onBeginningOfSpeech()
                                 Log.d("VAD", "PAUSE: Got speech!")
+                                if(audioManager?.isMusicActive == true) {
+                                    Log.d("VAD", "Music Is ACTIVE => PAUSE!")
+                                    var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                                    audioManager!!.dispatchMediaKeyEvent(event)
+                                }
+
+                                isSpeech = System.currentTimeMillis()
                             }
+
                             shouldRewind = true
-                            isSpeech = System.currentTimeMillis()
                         }
 
                         override fun onNoiseDetected() {
