@@ -299,6 +299,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onStop() {
         super.onStop()
         Log.e("VAD", "onStop called!")
+        resumeMediaScheduledFuture?.cancel(true)
         stopRecording()
 
         if (textToSpeech != null ) {
@@ -310,6 +311,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onDestroy() {
         Log.e("VAD", "onDestroy called!")
+        resumeMediaScheduledFuture?.cancel(true)
         stopRecording()
 
         if (textToSpeech != null) {
@@ -321,6 +323,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        resumeMediaScheduledFuture?.cancel(true)
         Log.e("VAD", "onDestroyView called!")
         stopRecording()
         if (textToSpeech != null) {
