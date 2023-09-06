@@ -5,16 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.media.MicrophoneInfo
-import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -34,15 +28,13 @@ import com.konovalov.vad.silero.config.FrameSize
 import com.konovalov.vad.silero.config.Mode
 import com.konovalov.vad.silero.config.SampleRate
 import kotlinx.coroutines.CoroutineScope
-import java.util.*
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
-
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -77,7 +69,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     internal class NotificationReceiver : BroadcastReceiver() {
        override fun onReceive(context: Context, intent: Intent) {
-            Log.e("NOTIFY", intent.getStringExtra("notification_event") + "n study-buddy")
+            Log.d("NOTIFY", intent.getStringExtra("notification_event") + "n study-buddy")
         }
     }
 
@@ -145,7 +137,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            Log.e("MIC2", "PERMISSION GRANTED!!!!!!!!!!!!!!")
+            Log.d("MIC2", "PERMISSION GRANTED!!!!!!!!!!!!!!")
 
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(
@@ -170,7 +162,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     private val utteranceProgressListener = object : UtteranceProgressListener() {
        override fun onStart(utteranceId: String?) {
-            Log.e("speech", "Starting now")
+            Log.d("speech", "Starting now")
         }
 
         override fun onDone(utteranceId: String) {
@@ -202,16 +194,15 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                 1
             )
 
-            Log.e("MIC", "Audio permission not granted!")
+            Log.d("MIC", "Audio permission not granted!")
         }
 
-        Log.e("MIC", "Listening is runinning")
+        Log.d("MIC", "Listening is runinning")
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
         startRecording()
     }
-
 
     private val myText = "In the year that King Uzziah died I saw the Lord sitting on a high and lofty throne, and the train of His robe filled the temple."
 
@@ -221,21 +212,21 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             // Set the language for speech synthesis (e.g., English)
             val result = textToSpeech?.setLanguage(Locale.US)
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TextToSpeech", "Language is not available.")
+                Log.d("TextToSpeech", "Language is not available.")
             } else {
                 val ssml = i.next();//.convertToSSML(myText)
-                Log.e("speech: 100", ssml)
+                Log.d("speech: 100", ssml)
                 textToSpeech!!.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     var startTime: Long = 0
                     override fun onStart(utteranceId: String) {
-                        Log.e("TTS", "Starting new speech")
+                        Log.d("TTS", "Starting new speech")
                         startTime = System.currentTimeMillis()
                     }
 
                     override fun onDone(p0: String?) {
-                        Log.i("TTS", "Utterance done: " );
+                        Log.d("TTS", "Utterance done: " );
                         val delayMillis = System.currentTimeMillis() - startTime
-                        Log.i("TTS", "Next in " + delayMillis / 1000 + "s" );
+                        Log.d("TTS", "Next in " + delayMillis / 1000 + "s" );
                         scheduleNext(delayMillis/3)
                         // Called when speech synthesis is completed.
                     }
@@ -244,19 +235,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                         // Called when there's an error in speech synthesis.
                     }
                 })
-                //speakText(ssml)
-                // TextToSpeech engine is ready.
-                // Now you can send text snippets to be spoken.
-//                val myText = "<speak>This <break time=\"1s\"/>is an important <emphasis level='strong'>word</emphasis>.</speak>\n"
-
-                /*"1 Tim. 1:3-4 ...Charge certain ones not to teach different things " +
-                        "nor to give heed to myths and unending genealogies, " +
-                        "which produce questionings rather than God’s economy, " +
-                val strings = TextFilter.filterAndSplitText(myText)
-                for(s in strings) {
-                    speakText(s)
-                }*/
-            }
+           }
         } else {
             Log.e("TextToSpeech", "Initialization failed.")
         }
@@ -279,7 +258,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             // This is your one-shot callback function
             // For example, you can update UI elements or perform other actions here
             val ssml = i.next()
-            Log.i("TTS", ssml)
+            Log.d("TTS", ssml)
             speakText(ssml)
 
             // Shutdown the executor when no longer needed
@@ -304,7 +283,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     }
     override fun onStop() {
         super.onStop()
-        Log.e("VAD", "onStop called!")
+        Log.d("VAD", "onStop called!")
         //stopRecording()
 
         if (textToSpeech != null ) {
@@ -315,7 +294,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
-        Log.e("VAD", "onDestroy called!")
+        Log.d("VAD", "onDestroy called!")
         stopRecording()
 
         if (textToSpeech != null) {
@@ -328,7 +307,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onDestroyView() {
         super.onDestroyView()
 
-        Log.e("VAD", "onDestroyView called!")
+        Log.d("VAD", "onDestroyView called!")
         stopRecording()
         if (textToSpeech != null) {
             textToSpeech?.stop()
@@ -339,59 +318,19 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     }
 
     fun onEndOfSpeech() {
-        Log.i("VAD", "You went quiet! REWIND and PLAY")
+        Log.d("VAD", "You went quiet! REWIND and PLAY")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-//        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
-//        val rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
 
         if(shouldRewind) {
             shouldRewind = false
 
-/*            Log.i("VAD", "REWIND BROADCAST")
-            val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
-            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-            requireActivity().sendOrderedBroadcast(intent, null)*/
-            Log.i("VAD", "REWIND BROADCAST")
-/*            val eventTime3 = SystemClock.uptimeMillis()
-            val intent3 = Intent(Intent.ACTION_MEDIA_BUTTON)
-            intent3.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime3, eventTime3, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND, 0))
-            requireActivity().sendOrderedBroadcast(intent3, null)*/
+           Log.d("VAD", "REWIND BROADCAST")
 
             var rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_REWIND)
-//            audioManager!!.requestAudioFocus(AudioFocusRequest.)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
             rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_REWIND)
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-/*
-            rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-
-            rewindEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)
-            rewindEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD)
-            audioManager!!.dispatchMediaKeyEvent(rewindEvent)*/
-        }
-
-/*        val intent2 = Intent(Intent.ACTION_MEDIA_BUTTON)
-        val eventTime2 = SystemClock.uptimeMillis()
-        //        val eventTime2 = System.nanoTime()
-        intent2.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime2, eventTime2, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-        requireActivity().sendOrderedBroadcast(intent2, null)*/
-
-        /*        val intent2 = Intent(Intent.ACTION_MEDIA_BUTTON)
-                val eventTime2 = SystemClock.uptimeMillis() + 1
-        //        val eventTime2 = System.nanoTime()
-                intent2.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime2, eventTime2, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-                requireActivity().sendOrderedBroadcast(intent2, null)*/
-/*        val eventTime = SystemClock.uptimeMillis() + 1000
-        val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
-        intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0))
-//                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
-        requireActivity().sendOrderedBroadcast(intent, null)
-
-*/
+       }
 
         // In principle, we should rely on the real state of the system, not a model of that state
         if(audioManager?.isMusicActive == false) {
@@ -400,15 +339,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
             audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
         }
-
-/*
-        val extractor = MediaExtractor()
-extractor.setDataSource("path/to/media/file")
-extractor.selectTrack(0) // select the first track
-extractor.seekTo(1000000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC) // rewind to 1 second
-
-         */
-    }
+   }
 
     var shouldRewind = false
 
@@ -417,10 +348,7 @@ extractor.seekTo(1000000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC) // rewind to 1 s
 
     var resumeMediaScheduledFuture: ScheduledFuture<*>? = null
     val resumeMedia = Runnable {
-        // Code to be executed after the delay
-        // This is your one-shot callback function
-        // For example, you can update UI elements or perform other actions here
-        onEndOfSpeech()
+      onEndOfSpeech()
     }
 
     private fun startRecording() {
@@ -443,22 +371,11 @@ extractor.seekTo(1000000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC) // rewind to 1 s
                             resumeMediaScheduledFuture?.cancel(true)
                             resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
 
-/*                            val eventTime = SystemClock.uptimeMillis()
-                            val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
-                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
-//                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(eventTime+1, eventTime+1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0))
-                            requireActivity().sendOrderedBroadcast(intent, null)*/
-
                             val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-
-/*                            event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                            audioManager!!.dispatchMediaKeyEvent(event)*/
 
                             // TODO make this not be so dumb - if speaking persistent while already playing, will not pause again
                             // couild just fire pause all the tiem?
                             if (System.currentTimeMillis() - isSpeech > 300) {
-                                //:w
-                                //onBeginningOfSpeech()
                                 Log.d("VAD", "PAUSE: Got speech!")
                                 if(audioManager?.isMusicActive == true) {
                                     Log.d("VAD", "Music Is ACTIVE => PAUSE!")
