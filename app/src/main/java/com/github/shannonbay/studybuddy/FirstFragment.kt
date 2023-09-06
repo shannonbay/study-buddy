@@ -28,6 +28,7 @@ import com.konovalov.vad.silero.VadSilero
 import com.konovalov.vad.silero.config.FrameSize
 import com.konovalov.vad.silero.config.Mode
 import com.konovalov.vad.silero.config.SampleRate
+import kotlinx.coroutines.CoroutineScope
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -114,7 +115,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             .build()
 
 
-//        requestMicrophone()
         return binding.root
 
 
@@ -200,18 +200,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             Log.e("MIC", "Audio permission not granted!")
         }
 
-        Log.d("VAD", "Starting recording")               //Noise detected!
-
-        Log.e("MIC", "is speech" + vad!!.isSpeech(audioData))
-        Log.d("VAD", "Waiting for noise")               //Noise detected!
-
-        startRecording()
-
-        vad!!.close()
         Log.e("MIC", "Listening is runinning")
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
+        startRecording()
     }
 
 
@@ -296,10 +289,27 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID)
     }
 
+    private fun stopRecording() {
+        if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
+            audioRecord!!.stop()
+            audioRecord!!.release()
+            isRecording = false
+        }
+    }
+    override fun onStop() {
+        super.onStop()
+        Log.e("VAD", "onStop called!")
+        stopRecording()
 
+        if (textToSpeech != null ) {
+            textToSpeech?.stop()
+            textToSpeech?.shutdown()
+        }
+        super.onDestroy()
+    }
 
     override fun onDestroy() {
-
+        Log.e("VAD", "onDestroy called!")
         stopRecording()
 
         if (textToSpeech != null) {
@@ -311,28 +321,14 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-
+        Log.e("VAD", "onDestroyView called!")
+        stopRecording()
         if (textToSpeech != null) {
             textToSpeech?.stop()
             textToSpeech?.shutdown()
         }
 
         _binding = null
-    }
-
-    private fun startListening() {
-
-        val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-
-        recognizerIntent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-        )
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE , false)
-
-        Log.d("MIC", "Started listening")
     }
 
     fun onBeginningOfSpeech() {
@@ -387,60 +383,50 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         // For example, you can update UI elements or perform other actions here
         onEndOfSpeech()
     }
-    private fun startRecording() { // TODO make a SpeechRecognizer style callback for Android VAD
-        runBlocking {
-            launch(Dispatchers.IO) {
-                // Ensure the audioRecord instance is properly initialized
 
+    private fun startRecording() {
+        Log.d("VAD", "Starting recording")
+        // Start a coroutine on the IO dispatcher
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Ensure the audioRecord instance is properly initialized
                 audioRecord?.startRecording()
                 Log.d("MIC", "Started Recording " + audioData.slice(IntRange(1, 2)))
                 isRecording = true
                 while (isRecording) {
-                    // Read audio data on the background thread
                     val bytesRead = audioRecord?.read(audioData, 0, audioData.size)
                     // Process audioData or send it to another component
 
-                    vad!!.setContinuousSpeechListener(audioData, object : VadListener {
+                    vad?.setContinuousSpeechListener(audioData, object : VadListener {
                         override fun onSpeechDetected() {
-                            Log.d("VAD", "Restart resume callback")
+                            Log.d("VAD", "Speech detected: Restart resume callback")
                             resumeMediaScheduledFuture?.cancel(true)
                             resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
-                            if(System.currentTimeMillis() - isSpeech > 3000) {
+                            if (System.currentTimeMillis() - isSpeech > 3000) {
                                 onBeginningOfSpeech()
                                 Log.d("VAD", "PAUSE: Got speech!")
                             }
-                            // Define the code you want to run after the delay
-
-
-
                             shouldRewind = true
                             isSpeech = System.currentTimeMillis()
-
-                            //Speech detected!
                         }
 
                         override fun onNoiseDetected() {
-                            if(System.currentTimeMillis() - isSpeech > 3000) {
+                            if (System.currentTimeMillis() - isSpeech > 3000) {
                                 onEndOfSpeech()
-                                if(shouldRewind)
-                                    Log.d("VAD", "Speech ended - rewind/resume!")               //Noise detected!
+                                if (shouldRewind) {
+                                    Log.d("VAD", "Speech ended - rewind/resume!")
+                                }
                             }
                         }
                     })
-
                 }
 
+                vad?.close()
                 audioRecord?.stop()
                 audioRecord?.release()
+            } catch (e: Exception) {
+                // Handle exceptions here
             }
-        }
-    }
-
-    private fun stopRecording() {
-        if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
-            audioRecord!!.stop()
-            audioRecord!!.release()
-            isRecording = false
         }
     }
 
