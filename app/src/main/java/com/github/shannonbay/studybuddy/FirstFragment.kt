@@ -290,6 +290,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     }
 
     private fun stopRecording() {
+        resumeMediaScheduledFuture?.cancel(true)
         if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
             audioRecord!!.stop()
             audioRecord!!.release()
@@ -299,7 +300,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onStop() {
         super.onStop()
         Log.e("VAD", "onStop called!")
-        resumeMediaScheduledFuture?.cancel(true)
         stopRecording()
 
         if (textToSpeech != null ) {
@@ -311,7 +311,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onDestroy() {
         Log.e("VAD", "onDestroy called!")
-        resumeMediaScheduledFuture?.cancel(true)
         stopRecording()
 
         if (textToSpeech != null) {
@@ -323,7 +322,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        resumeMediaScheduledFuture?.cancel(true)
+
         Log.e("VAD", "onDestroyView called!")
         stopRecording()
         if (textToSpeech != null) {
@@ -389,6 +388,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     private fun startRecording() {
         Log.d("VAD", "Starting recording")
+        onEndOfSpeech()
         // Start a coroutine on the IO dispatcher
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -402,7 +402,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
                     vad?.setContinuousSpeechListener(audioData, object : VadListener {
                         override fun onSpeechDetected() {
-                            Log.d("VAD", "Speech detected: Restart resume callback")
+                            Log.d("VAD", "Speech detected: delay media")
                             resumeMediaScheduledFuture?.cancel(true)
                             resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
                             if (System.currentTimeMillis() - isSpeech > 3000) {
