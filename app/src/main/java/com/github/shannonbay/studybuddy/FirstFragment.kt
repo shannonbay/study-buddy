@@ -16,6 +16,7 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.SeekBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -78,6 +79,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
+
+        createSeekBar(_binding!!.seekBar)
         mediaControllerManager = MediaControllerManager(requireContext())
 
         // Request audio recording permission if not granted
@@ -117,8 +120,38 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     }
 
+    private fun createSeekBar(seekBar: SeekBar) {
+        // Initialize the SeekBar
+        Log.i("SEEK", "INIT ")               // Called when the user starts interacting with the SeekBar
+        DELAY = (Math.pow(seekBar.progress.toDouble(), 2.0)).toLong()
+        _binding?.textviewFirst?.text = DELAY.toString()
+        // Set an OnSeekBarChangeListener to listen for user interactions
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                // Handle progress change (value selected by the user)
+                // 'progress' contains the selected value
+                Log.i("SEEK", "and you shall find" + progress)
+                DELAY = (Math.pow(progress.toDouble(), 2.0)).toLong()
+
+                _binding?.textviewFirst?.text = DELAY.toString()
+
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+//                Log.i("SEEK", "and you shall find" + seekBar)               // Called when the user starts interacting with the SeekBar
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                // Called when the user stops interacting with the SeekBar
+ //               Log.i("SEEK", "and you shall find" + seekBar)
+            }
+        })
+    }
+
     private val PERMISSION_REQUEST_MEDIA_CONTROL = 2
     private val PERMISSION_REQUEST_MANAGE_MEDIA = 3
+
+    private var DELAY = 3100L
 
     private fun requestMicrophone() {
         val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
@@ -348,7 +381,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     var resumeMediaScheduledFuture: ScheduledFuture<*>? = null
     val resumeMedia = Runnable {
-      onEndOfSpeech()
+        Log.e("VAD", "Resuming via callback!!!!!!!!!!!!!")
+        onEndOfSpeech()
     }
 
     private fun startRecording() {
@@ -369,7 +403,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                         override fun onSpeechDetected() {
                             Log.d("VAD", "Speech detected: delay media")
                             resumeMediaScheduledFuture?.cancel(true)
-                            resumeMediaScheduledFuture = scheduleNext(resumeMedia, 3200)
+                            resumeMediaScheduledFuture = scheduleNext(resumeMedia, DELAY)
 
                             val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
@@ -390,7 +424,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                         }
 
                         override fun onNoiseDetected() {
-                            if (System.currentTimeMillis() - isSpeech > 3000) {
+                            if (System.currentTimeMillis() - isSpeech > DELAY) {
                                 onEndOfSpeech()
                                 if (shouldRewind) {
                                     Log.d("VAD", "Speech ended - rewind/resume!")
