@@ -393,8 +393,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
 */
 
+        // In principle, we should rely on the real state of the system, not a model of that state
         if(audioManager?.isMusicActive == false) {
             var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+            audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+            event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
             audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
         }
 
