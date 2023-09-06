@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.MicrophoneInfo
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -300,7 +301,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onStop() {
         super.onStop()
         Log.e("VAD", "onStop called!")
-        stopRecording()
+        //stopRecording()
 
         if (textToSpeech != null ) {
             textToSpeech?.stop()
@@ -338,8 +339,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
         var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
         audioManager!!.dispatchMediaKeyEvent(event)
-        /*event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-        audioManager!!.dispatchMediaKeyEvent(event)*/
+        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+        audioManager!!.dispatchMediaKeyEvent(event)
     }
 
     fun onEndOfSpeech() {
@@ -375,8 +376,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     var shouldRewind = false
 
-    val audioData = ShortArray(512)
-    var isSpeech = System.currentTimeMillis()
+    private val audioData = ShortArray(512)
+    var isSpeech = 0L
 
     var resumeMediaScheduledFuture: ScheduledFuture<*>? = null
     val resumeMedia = Runnable {
