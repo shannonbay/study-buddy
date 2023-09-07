@@ -10,6 +10,8 @@ When it hears speech, it pauses until speech ends plus a configurable timeout, t
 
 ## Features
 * Pause, resumes and rewind play-back by detecting speech.
+* Compatible with Spotify, Subsplash and many other media players
+* Works offline - except rewind for Spotify
 * Configurable resume delay
 
 # Future features
