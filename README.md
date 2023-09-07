@@ -14,8 +14,8 @@ When it hears speech, it pauses until speech ends plus a configurable timeout, t
 * Works offline - except rewind for Spotify
 * Configurable resume delay
 
-### Future features
-* Configurable rewind
+### TODOs/Potential features
+* Configurable rewind amount
 * Rewind more or less depending on pause duration
 * A repeat reading app which breaks a text into bite-size chunks for more focused listening. - POC done. This gives the listener time to verbally repeat or paraphrase the content, and also makes disruptions less of a hassle.
 * Record your own speech and transcribe for an end-of-day review/journal update.
