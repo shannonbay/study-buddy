@@ -249,7 +249,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        mediaController = MediaController(requireActivity())
+        mediaController = CustomMediaController(requireActivity())
         // Create a MediaController object and set it to the VideoView
         mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
 
