@@ -2,13 +2,19 @@ package com.github.shannonbay.studybuddy
 
 import android.Manifest
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.MediaMetadata
+import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.media.session.MediaSession
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -16,7 +22,9 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.MediaController
 import android.widget.SeekBar
+import android.widget.VideoView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -42,6 +50,7 @@ import java.util.concurrent.TimeUnit
  */
 class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
+    private lateinit var mediaSession: MediaSession
     private var _binding: FragmentFirstBinding? = null
     private var textToSpeech: TextToSpeech? = null
     private lateinit var mediaControllerManager: MediaControllerManager
@@ -74,14 +83,40 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         }
     }
 
+    private lateinit var videoView: VideoView
+    private lateinit var mediaController: MediaController
+    private val mediaPlayer = MediaPlayer()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val context: Context = requireContext()
+        val componentName = ComponentName(context, MediaControlNotificationListener::class.java)
+        mediaSession = MediaSession(context, "hi")
+
+    }
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
 
+        // Initialize MediaController
+
+        // Find the VideoView by its id
+
+        val session = MediaSession(requireContext(), "Study")
+
+// Set the metadata and playback state to the session
+//        session.setMetadata(metadata)
+//        session.setPlaybackState(playbackState)
+
+// Activate the session
+        session.isActive = true
+
+
         createSeekBar(_binding!!.seekBar)
-        mediaControllerManager = MediaControllerManager(requireContext())
+//        mediaControllerManager = MediaControllerManager(requireContext())
 
         // Request audio recording permission if not granted
         if (ContextCompat.checkSelfPermission(
@@ -213,6 +248,69 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        mediaController = MediaController(requireActivity())
+        // Create a MediaController object and set it to the VideoView
+        mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
+
+            override fun start() {
+                mediaPlayer.start()
+            }
+
+            override fun pause() {
+                mediaPlayer.pause()
+            }
+
+            override fun getDuration(): Int {
+                return mediaPlayer.duration
+            }
+
+            override fun getCurrentPosition(): Int {
+                return mediaPlayer.currentPosition
+            }
+
+            override fun seekTo(p0: Int) {
+                mediaPlayer.seekTo(p0)
+            }
+
+            override fun isPlaying(): Boolean {
+                return true
+            }
+
+            override fun getBufferPercentage(): Int {
+                return 100
+            }
+
+            override fun canPause(): Boolean {
+                return true
+            }
+
+            override fun canSeekBackward(): Boolean {
+                return true
+            }
+
+            override fun canSeekForward(): Boolean {
+                return true
+            }
+
+            override fun getAudioSessionId(): Int {
+                return 76567
+            }
+
+            // Implement other required methods
+        })
+        videoView = _binding!!.videoView
+
+        // Create a MediaSession
+        mediaController.setAnchorView(videoView)
+
+        videoView.setMediaController(mediaController)
+        videoView.start()
+        Handler(Looper.getMainLooper()).postDelayed({
+            mediaController.show(0)
+        }, 100)
+
+        Log.e("MEDIA", "" + mediaController.isShowing)
         textToSpeech = TextToSpeech(requireContext(), this)
 
         textToSpeech!!.setOnUtteranceProgressListener(utteranceProgressListener)
