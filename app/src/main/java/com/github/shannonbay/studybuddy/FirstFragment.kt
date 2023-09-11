@@ -7,11 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.media.AudioRecord
 import android.media.MediaMetadata
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.media.session.MediaSession
+import android.media.session.PlaybackState
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -25,6 +28,7 @@ import android.view.ViewGroup
 import android.widget.MediaController
 import android.widget.SeekBar
 import android.widget.VideoView
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -55,6 +59,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private lateinit var mediaControllerManager: MediaControllerManager
 
+    private var handler = Handler(Looper.getMainLooper())
     /**
      * Microphone setup for VAD
      */
@@ -249,16 +254,68 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioManager!!.registerAudioPlaybackCallback(
+                object : AudioManager.AudioPlaybackCallback(){
+                    override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+                        super.onPlaybackConfigChanged(configs)
+                        Log.e("GUI", "How are you? $configs")
+                    }
+                },
+                handler
+            )
+        }
+    /*        val mc = android.media.session.MediaController(requireContext(), mediaSession.sessionToken)
+            mc.registerCallback(object : android.media.session.MediaController.Callback() {
+                override fun onPlaybackStateChanged(state: PlaybackState?) {
+                    super.onPlaybackStateChanged(state)
+                    val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+                    playMedia(audioManager)
+                }
+            })*/
         mediaController = CustomMediaController(requireActivity())
         // Create a MediaController object and set it to the VideoView
+
         mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
 
             override fun start() {
-                mediaPlayer.start()
+                val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+                if(audioManager?.isMusicActive == false) {
+                    Log.d("GUI", "Music inactive: PLAY")
+                    playMedia(audioManager)
+               }
+                startRecording()
+                isRecording = true
+                mediaController.refreshDrawableState()
+                mediaController.invalidate()
             }
 
             override fun pause() {
-                mediaPlayer.pause()
+                resumeMediaScheduledFuture?.cancel(true)
+                val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+
+                // Request audio focus
+                val result = audioManager?.requestAudioFocus(
+                    null, // OnAudioFocusChangeListener (null for simplicity)
+                    AudioManager.STREAM_MUSIC, // Stream type
+                    AudioManager.AUDIOFOCUS_GAIN // Focus type
+                )
+
+                if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+
+                    if (audioManager?.isMusicActive == true) {
+                        Log.d("GUI", "Music Is ACTIVE: PAUSE")
+                        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        audioManager?.dispatchMediaKeyEvent(event)
+                        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        audioManager?.dispatchMediaKeyEvent(event)
+                    }
+                    audioManager?.abandonAudioFocus(null)
+                }
+                stopRecording()
+                mediaController.refreshDrawableState()
+                mediaController.invalidate()
             }
 
             override fun getDuration(): Int {
@@ -274,7 +331,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             }
 
             override fun isPlaying(): Boolean {
-                return true
+                return audioRecord!!.state == AudioRecord.STATE_INITIALIZED || isRecording
             }
 
             override fun getBufferPercentage(): Int {
@@ -282,15 +339,15 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             }
 
             override fun canPause(): Boolean {
-                return true
+                return audioRecord!!.state == AudioRecord.STATE_INITIALIZED || isRecording
             }
 
             override fun canSeekBackward(): Boolean {
-                return true
+                return false
             }
 
             override fun canSeekForward(): Boolean {
-                return true
+                return false
             }
 
             override fun getAudioSessionId(): Int {
@@ -306,9 +363,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
         videoView.setMediaController(mediaController)
         videoView.start()
-        Handler(Looper.getMainLooper()).postDelayed({
+        handler.postDelayed({
             mediaController.show(0)
         }, 100)
+
+
 
         Log.e("MEDIA", "" + mediaController.isShowing)
         textToSpeech = TextToSpeech(requireContext(), this)
@@ -409,8 +468,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
             audioRecord!!.stop()
             audioRecord!!.release()
-            isRecording = false
         }
+        isRecording = false
     }
     override fun onStop() {
         super.onStop()
@@ -448,8 +507,8 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         _binding = null
     }
 
-    fun onEndOfSpeech() {
-        Log.d("VAD", "You went quiet! REWIND and PLAY")
+    @Synchronized fun onEndOfSpeech() {
+//        Log.d("VAD", "You went quiet! REWIND and PLAY")
         val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
         if(shouldRewind) {
@@ -463,14 +522,24 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             audioManager!!.dispatchMediaKeyEvent(rewindEvent)
        }
 
-        // In principle, we should rely on the real state of the system, not a model of that state
-        if(audioManager?.isMusicActive == false) {
+        if(!pending) {
+            pending = true
+            // In principle, we should rely on the real state of the system, not a model of that state
+            handler.postDelayed(Runnable { pending = false; playMedia(audioManager) }, 100)
+        }
+   }
+
+    var pending = false;
+
+    private fun playMedia(audioManager: AudioManager?) {
+        if (audioManager?.isMusicActive == false) {
+            Log.d("VAD", "Go")
             var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
             audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
             event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
             audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
         }
-   }
+    }
 
     var shouldRewind = false
 
@@ -486,13 +555,14 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     private fun startRecording() {
         Log.d("VAD", "Starting recording")
         onEndOfSpeech()
+        isRecording = true
         // Start a coroutine on the IO dispatcher
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Ensure the audioRecord instance is properly initialized
                 audioRecord?.startRecording()
                 Log.d("MIC", "Started Recording " + audioData.slice(IntRange(1, 2)))
-                isRecording = true
+
                 while (isRecording) {
                     val bytesRead = audioRecord?.read(audioData, 0, audioData.size)
                     // Process audioData or send it to another component
@@ -500,8 +570,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                     vad?.setContinuousSpeechListener(audioData, object : VadListener {
                         override fun onSpeechDetected() {
                             Log.d("VAD", "Speech detected: delay media")
-                            resumeMediaScheduledFuture?.cancel(true)
-                            resumeMediaScheduledFuture = scheduleNext(resumeMedia, DELAY)
+                            handler.removeCallbacks(resumeMedia)
+                            handler.postDelayed(resumeMedia, DELAY)
+
+/*                            resumeMediaScheduledFuture?.cancel(true)
+                            resumeMediaScheduledFuture = scheduleNext(resumeMedia, DELAY)*/
 
                             val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
@@ -513,10 +586,13 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                                     Log.d("VAD", "Music Is ACTIVE => PAUSE!")
                                     var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
                                     audioManager!!.dispatchMediaKeyEvent(event)
+                                    event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                                    audioManager!!.dispatchMediaKeyEvent(event)
+
                                 }
 
-                                isSpeech = System.currentTimeMillis()
                             }
+                            isSpeech = System.currentTimeMillis()
 
                             shouldRewind = true
                         }
