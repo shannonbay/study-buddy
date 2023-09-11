@@ -284,7 +284,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                 if(audioManager?.isMusicActive == false) {
                     Log.d("GUI", "Music inactive: PLAY")
                     playMedia(audioManager)
-               }
+                }
                 startRecording()
                 isRecording = true
                 mediaController.refreshDrawableState()
@@ -531,13 +531,17 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     var pending = false;
 
+    private val playMediaDebouncer = Debouncer()
+
     private fun playMedia(audioManager: AudioManager?) {
-        if (audioManager?.isMusicActive == false) {
-            Log.d("VAD", "Go")
-            var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
-            audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
-            event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
-            audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+        playMediaDebouncer.debounce("playMedia", 100) {
+            if (audioManager?.isMusicActive == false) {
+                Log.d("VAD", "Go")
+                var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+                audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+                event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+                audioManager!!.dispatchMediaKeyEvent(event) //TODO make this optional since it's really fast
+            }
         }
     }
 
