@@ -5,15 +5,14 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
 import android.media.AudioRecord
-import android.media.MediaMetadata
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.media.session.MediaSession
-import android.media.session.PlaybackState
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -28,9 +27,9 @@ import android.view.ViewGroup
 import android.widget.MediaController
 import android.widget.SeekBar
 import android.widget.VideoView
-import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.github.shannonbay.studybuddy.databinding.FragmentFirstBinding
@@ -49,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
+
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
@@ -64,7 +64,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
      * Microphone setup for VAD
      */
 
-    private val audioSource = MediaRecorder.AudioSource.MIC
+    private val audioSource = MediaRecorder.AudioSource.DEFAULT
     private val sampleRate = 8000 // You can change this to your desired sample rate
     private val channelConfig = android.media.AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = android.media.AudioFormat.ENCODING_PCM_16BIT
@@ -136,6 +136,11 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             )
         }
 
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        audioManager?.isBluetoothScoOn = true
+        audioManager?.startBluetoothSco()
+        audioManager?.mode = AudioManager.MODE_IN_CALL
+
         // Initialize AudioRecord
         audioRecord = AudioRecord(
             audioSource,
@@ -160,6 +165,41 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     }
 
+    private val mBluetoothScoReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
+            if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
+                Log.e("MYBLUE", "GOT BLUETHOOTH RECEIVER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                startRecording()
+            }
+
+            Log.e("MYBLUE", "Received SCO AUDIO STATE $state")
+
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.e("MYBLUE", "onResume")
+        val intentFilter = IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
+        val intent: Intent? = requireActivity().registerReceiver(mBluetoothScoReceiver, intentFilter)
+        if (intent == null) {
+            Log.e("MYBLUE", "Failed to register bluetooth sco receiver...")
+            return
+        }
+        val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
+        if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
+            Log.e("MYBLUE", "Got BLYETOOTH!")
+            startRecording()
+        }
+        Log.e("MYBLUE", "SCO AUDIO STATE $state")
+
+        // Ensure the SCO audio connection stays active in case the
+        // current initiator stops it.
+        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
+        audioManager!!.startBluetoothSco()
+        Log.e("MYBLUE", ":(")
+    }
     private fun createSeekBar(seekBar: SeekBar) {
         // Initialize the SeekBar
         Log.i("SEEK", "INIT ")               // Called when the user starts interacting with the SeekBar
@@ -391,7 +431,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
-        startRecording()
+    //    startRecording()
     }
 
     private val myText = "In the year that King Uzziah died I saw the Lord sitting on a high and lofty throne, and the train of His robe filled the temple."
@@ -564,6 +604,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Ensure the audioRecord instance is properly initialized
+                val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
                 audioRecord?.startRecording()
                 Log.d("MIC", "Started Recording " + audioData.slice(IntRange(1, 2)))
 
