@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -51,10 +50,8 @@ import java.util.concurrent.TimeUnit
  */
 class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
-    private lateinit var mediaSession: MediaSession
     private var _binding: FragmentFirstBinding? = null
     private var textToSpeech: TextToSpeech? = null
-    private lateinit var mediaControllerManager: MediaControllerManager
 
     /**
      * Microphone setup for VAD
@@ -92,9 +89,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
 
         val context: Context = requireContext()
-        val componentName = ComponentName(context, MediaControlNotificationListener::class.java)
-        mediaSession = MediaSession(context, "hi")
-
     }
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -102,22 +96,9 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     ): View? {
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
 
-        // Initialize MediaController
 
         // Find the VideoView by its id
-
-        val session = MediaSession(requireContext(), "Study")
-
-// Set the metadata and playback state to the session
-//        session.setMetadata(metadata)
-//        session.setPlaybackState(playbackState)
-
-// Activate the session
-        session.isActive = true
-
-
         createSeekBar(_binding!!.seekBar)
-//        mediaControllerManager = MediaControllerManager(requireContext())
 
         // Request audio recording permission if not granted
         if (ContextCompat.checkSelfPermission(
@@ -161,17 +142,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     }
 
-    private val mBluetoothScoReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
-            if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
-                Log.e("MYBLUE", "GOT BLUETHOOTH RECEIVER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                startRecording()
-            }
-
-            Log.e("MYBLUE", "Received SCO AUDIO STATE $state")
-        }
-    }
     private fun createSeekBar(seekBar: SeekBar) {
         // Initialize the SeekBar
         Log.i("SEEK", "INIT ")               // Called when the user starts interacting with the SeekBar
@@ -189,14 +159,9 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-//                Log.i("SEEK", "and you shall find" + seekBar)               // Called when the user starts interacting with the SeekBar
-            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { }
 
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                // Called when the user stops interacting with the SeekBar
- //               Log.i("SEEK", "and you shall find" + seekBar)
-            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) { }
         })
     }
 
@@ -266,28 +231,10 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-/*        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioManager!!.registerAudioPlaybackCallback(
-                object : AudioManager.AudioPlaybackCallback(){
-                    override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
-                        super.onPlaybackConfigChanged(configs)
-                        Log.e("GUI", "How are you? $configs")
-                    }
-                },
-                handler
-            )
-        }*/
-    /*        val mc = android.media.session.MediaController(requireContext(), mediaSession.sessionToken)
-            mc.registerCallback(object : android.media.session.MediaController.Callback() {
-                override fun onPlaybackStateChanged(state: PlaybackState?) {
-                    super.onPlaybackStateChanged(state)
-                    val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
-                    playMedia(audioManager)
-                }
-            })*/
-        mediaController = CustomMediaController(requireActivity())
+        // Initialize MediaController
+
         // Create a MediaController object and set it to the VideoView
+        mediaController = CustomMediaController(requireActivity())
 
         mediaController.setMediaPlayer(object : MediaController.MediaPlayerControl {
 
@@ -370,7 +317,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         })
         videoView = _binding!!.videoView
 
-        // Create a MediaSession
         mediaController.setAnchorView(videoView)
 
         videoView.setMediaController(mediaController)
