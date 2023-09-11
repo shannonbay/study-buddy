@@ -1,6 +1,6 @@
 # study-buddy
-An audio streaming companion app for touchless playback control, perfect for listening on the go... and the sight-impaired
-It works by detecting any speech at all using VAD
+An audio streaming companion app for touchless playback control, perfect for listening on the go... 
+It works by detecting any speech at all using Voice Activity Detection.
 When it hears speech, it pauses until speech ends plus a configurable timeout, then it rewinds by 5 seconds and resumes
 
 ## Code style and tips
@@ -14,7 +14,12 @@ When it hears speech, it pauses until speech ends plus a configurable timeout, t
 * Works offline - except rewind for Spotify
 * Configurable resume delay
 
+### Work in progress
+* Support for Bluetooth microphones
+* Suppport for multiple concurrent bluetooth headsets
+  
 ### TODOs/Potential features
+* Support for built-in speaker and loudspeakers - will require Acoustic Echo Cancellation
 * Configurable rewind amount
 * Rewind more or less depending on pause duration
 * A repeat reading app which breaks a text into bite-size chunks for more focused listening. - POC done. This gives the listener time to verbally repeat or paraphrase the content, and also makes disruptions less of a hassle.
