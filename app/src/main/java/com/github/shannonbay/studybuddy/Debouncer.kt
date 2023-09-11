@@ -1,39 +1,28 @@
 package com.github.shannonbay.studybuddy
 
+import android.os.Build
+import android.os.Handler
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.*
 import kotlin.coroutines.*
 
-class Debouncer {
-    private val debounceTimers = mutableMapOf<Any, Job>()
+@RequiresApi(Build.VERSION_CODES.P)
+fun Handler.debounceDelayed(key: Any, delayMillis: Long, runnable: java.lang.Runnable) {
+    // Remove any pending runnables associated with the given key
+    removeCallbacksAndMessages(key)
 
-    fun shouldDebounce(key: Any, delayMillis: Long): Boolean {
-        val existingJob = debounceTimers[key]
-        if (existingJob == null || existingJob.isCompleted) {
-            // No existing debounce timer or it has completed; do not debounce
-            return false
-        }
-        return true
-    }
+    // Post the new runnable with the specified key and delay
+    postDelayed(runnable, key, delayMillis)
+}
 
-    fun debounce(key: Any, delayMillis: Long, action: suspend () -> Unit) {
-        val existingJob = debounceTimers[key]
+@RequiresApi(Build.VERSION_CODES.P)
+fun Handler.debounceUntil(key: Any, timeoutMillis: Long, action: () -> Unit) {
+    // Execute the action immediately
+    action()
 
-        if (existingJob == null || existingJob.isCompleted) {
-            // Create a new debounce timer if it doesn't exist or has completed
-            val newJob = GlobalScope.launch {
-                delay(delayMillis) // Delay for the specified period
-                action() // Execute the function after the delay
-            }
+    // Remove any pending callbacks
+    removeCallbacksAndMessages(key)
 
-            // Store the new debounce timer associated with the key
-            debounceTimers[key] = newJob
-
-            // Set an onCompletion handler to remove the timer when it completes
-            newJob.invokeOnCompletion { cause ->
-                if (cause == null) {
-                    debounceTimers.remove(key, newJob)
-                }
-            }
-        }
-    }
+    // Post a delayed callback to reset the debounce after the specified timeout
+    postDelayed({ /* No action needed here */ }, key, timeoutMillis)
 }
