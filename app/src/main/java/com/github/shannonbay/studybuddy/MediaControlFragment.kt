@@ -2,7 +2,6 @@ package com.github.shannonbay.studybuddy
 
 import android.Manifest
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,10 +9,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaPlayer
 import android.media.MediaRecorder
-import android.media.session.MediaSession
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -27,7 +23,6 @@ import android.widget.VideoView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.github.shannonbay.studybuddy.databinding.FragmentFirstBinding
 import com.konovalov.vad.silero.Vad
 import com.konovalov.vad.silero.VadListener
@@ -45,10 +40,12 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 
+private const val RESUME_MEDIA = "resumeMedia"
+
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
-class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
+class MediaControlFragment : Fragment(), TextToSpeech.OnInitListener {
 
     private var _binding: FragmentFirstBinding? = null
     private var textToSpeech: TextToSpeech? = null
@@ -170,46 +167,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
     private var DELAY = 3100L
 
-    private fun requestMicrophone() {
-        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-        startActivity(intent)
-
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MEDIA_CONTENT_CONTROL) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MEDIA_CONTENT_CONTROL), PERMISSION_REQUEST_MEDIA_CONTROL)
-        }
-
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.MANAGE_MEDIA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.MANAGE_MEDIA), PERMISSION_REQUEST_MANAGE_MEDIA)
-        }
-
-        if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.d("MIC2", "PERMISSION GRANTED!!!!!!!!!!!!!!")
-
-        } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(
-                    requireActivity(),
-                    Manifest.permission.RECORD_AUDIO
-                )
-            ) {
-                ActivityCompat.requestPermissions(
-                    requireActivity(),
-                    arrayOf(Manifest.permission.RECORD_AUDIO),
-                    RECORD_AUDIO_PERMISSION_REQUEST
-                )
-            } else {
-                ActivityCompat.requestPermissions(
-                    requireActivity(),
-                    arrayOf(Manifest.permission.RECORD_AUDIO),
-                    RECORD_AUDIO_PERMISSION_REQUEST
-                )
-            }
-        }
-    }
-
     private val utteranceProgressListener = object : UtteranceProgressListener() {
        override fun onStart(utteranceId: String?) {
             Log.d("speech", "Starting now")
@@ -251,7 +208,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
             }
 
             override fun pause() {
-                resumeMediaScheduledFuture?.cancel(true)
+                handler.cancel(RESUME_MEDIA)
                 val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
                 // Request audio focus
@@ -262,14 +219,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                 )
 
                 if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-
-                    if (audioManager?.isMusicActive == true) {
-                        Log.d("GUI", "Music Is ACTIVE: PAUSE")
-                        var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        audioManager?.dispatchMediaKeyEvent(event)
-                        event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        audioManager?.dispatchMediaKeyEvent(event)
-                    }
+                    sendPauseKeyEvent(audioManager)
                     audioManager?.abandonAudioFocus(null)
                 }
                 stopRecording()
@@ -324,7 +274,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
 
         // Extension function for Handler that supports debouncing delayed jobs with unique keys
 
-        handler.debounceDelayed("showMediaController", 100) { mediaController.show(0) }
+        TaskScheduler.reschedule(100 ) { mediaController.show(0)}
 
         Log.e("MEDIA", "" + mediaController.isShowing)
         textToSpeech = TextToSpeech(requireContext(), this)
@@ -345,10 +295,28 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         }
 
         Log.d("MIC", "Listening is runinning")
-        binding.buttonFirst.setOnClickListener {
-            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+        binding.buttonFirst.addOnCheckedChangeListener { button, isChecked ->
+            if (isChecked){
+                stopRecording()
+                button.icon = ContextCompat.getDrawable(requireContext(),R.drawable.baseline_mic_off_24)
+            } else {
+                startRecording()
+                button.icon = ContextCompat.getDrawable(requireContext(),R.drawable.baseline_mic_24)
+            }
         }
         startRecording()
+    }
+
+    private fun sendPauseKeyEvent(audioManager: AudioManager?) {
+        if(audioManager?.isMusicActive == true) {
+            handler.debounceAfter("pause", 1000) {
+                Log.d("GUI", "Music Is ACTIVE: PAUSE")
+                var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                audioManager?.dispatchMediaKeyEvent(event)
+                event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                audioManager?.dispatchMediaKeyEvent(event)
+            }
+        }
     }
 
     private val myText = "In the year that King Uzziah died I saw the Lord sitting on a high and lofty throne, and the train of His robe filled the temple."
@@ -421,7 +389,7 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     }
 
     private fun stopRecording() {
-        resumeMediaScheduledFuture?.cancel(true)
+        handler.cancel(RESUME_MEDIA)
         if (audioRecord != null && audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
             audioRecord?.stop()
             audioRecord?.release()
@@ -483,10 +451,10 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         playMedia(audioManager)
     }
 
-    val handler = Handler(Looper.getMainLooper())
+    val handler = Debouncer()
 
     private fun playMedia(audioManager: AudioManager?) {
-        handler.debounceUntil("playMedia", 100) {
+        handler.debounceAfter("playMedia", 1000) {
             if (audioManager?.isMusicActive == false) {
                 Log.d("VAD", "Go")
                 var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
@@ -502,7 +470,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
     private val audioData = ShortArray(512)
     var isSpeech = 0L
 
-    var resumeMediaScheduledFuture: ScheduledFuture<*>? = null
     val resumeMedia = Runnable {
         Log.e("VAD", "Resuming via callback!!!!!!!!!!!!!")
         onEndOfSpeech()
@@ -516,7 +483,6 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Ensure the audioRecord instance is properly initialized
-                val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
                 audioRecord?.startRecording()
                 Log.d("MIC", "Started Recording " + audioData.slice(IntRange(1, 2)))
 
@@ -527,25 +493,13 @@ class FirstFragment : Fragment(), TextToSpeech.OnInitListener {
                     vad?.setContinuousSpeechListener(audioData, object : VadListener {
                         override fun onSpeechDetected() {
                             Log.d("VAD", "Speech detected: delay media")
-
-                            handler.debounceDelayed("resumeMedia", DELAY) {resumeMedia}
+                            handler.debounceUntil(RESUME_MEDIA, DELAY) {resumeMedia}
 
                             val audioManager = ActivityCompat.getSystemService(requireContext(), AudioManager::class.java)
 
                             // TODO make this not be so dumb - if speaking persistent while already playing, will not pause again
                             // couild just fire pause all the tiem?
-                            if (System.currentTimeMillis() - isSpeech > 300) {
-                                Log.d("VAD", "PAUSE: Got speech!")
-                                if(audioManager?.isMusicActive == true) {
-                                    Log.d("VAD", "Music Is ACTIVE => PAUSE!")
-                                    var event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                                    audioManager?.dispatchMediaKeyEvent(event)
-                                    event = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                                    audioManager?.dispatchMediaKeyEvent(event)
-
-                                }
-
-                            }
+                            sendPauseKeyEvent(audioManager)
                             isSpeech = System.currentTimeMillis()
 
                             shouldRewind = true

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".FirstFragment">
+    tools:context=".MediaControlFragment">
 
     <VideoView
         android:id="@+id/video_view"
@@ -50,14 +50,18 @@
         />
     <!-- android:thumb="@drawable/seekbar_thumb" -->
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/button_first"
+        android:checkable="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/next"
+        app:iconGravity="start"
+        app:icon="@drawable/mic_toggle_btn"
+        app:cornerRadius="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textview_first" />
+        app:layout_constraintTop_toBottomOf="@id/textview_first"
+    />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
